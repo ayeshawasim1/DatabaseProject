@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Database Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/dist/vis-network.min.css">
+    <style>
+        .sidebar {
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+        }
+        #graph {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .command-line {
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .node-properties {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 bg-light sidebar p-3">
+                <h4>Database Manager</h4>
+
+                <div class="mb-3">
+                    <h5>Databases</h5>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="newDbName" placeholder="New database name">
+                        <button class="btn btn-primary" onclick="createDatabase()">Create</button>
+                    </div>
+                    <select class="form-select mb-2" id="dbList" size="5" onchange="loadDatabase()"></select>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-danger flex-grow-1" onclick="deleteDatabase()">Delete</button>
+                        <button class="btn btn-secondary flex-grow-1" onclick="refreshDatabases()">Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Add the Command Interface section right here -->
+                <div class="mb-3">
+                    <h5>Command Interface</h5>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="commandInput" placeholder="create_db mydatabase">
+                        <button class="btn btn-primary" onclick="executeCommand()">Execute</button>
+                    </div>
+                </div>
+
+                <!-- New Available Commands Section -->
+    <div class="mb-3">
+        <h5>Available Commands</h5>
+        <div class="accordion" id="commandsAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="commandsHeading">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#commandsCollapse" aria-expanded="false" aria-controls="commandsCollapse">
+                        View All Commands
+                    </button>
+                </h2>
+                <div id="commandsCollapse" class="accordion-collapse collapse" aria-labelledby="commandsHeading" data-bs-parent="#commandsAccordion">
+                    <div class="accordion-body command-line">
+                        <ul class="list-group">
+                            <li class="list-group-item"><code>create_db &lt;name&gt;</code>: Create a new database</li>
+                            <li class="list-group-item"><code>delete_db &lt;name&gt;</code>: Delete a database</li>
+                            <li class="list-group-item"><code>rename_db &lt;old&gt; &lt;new&gt;</code>: Rename a database</li>
+<!--                            <li class="list-group-item"><code>list_dbs</code>: List all databases</li>-->
+                            <li class="list-group-item"><code>use_db &lt;name&gt;</code>: Switch to a database</li>
+                            <li class="list-group-item"><code>backup_db &lt;name&gt; &lt;file&gt;</code>: Backup a database to a file</li>
+                            <li class="list-group-item"><code>restore_db &lt;name&gt; &lt;file&gt;</code>: Restore a database from a file</li>
+                            <li class="list-group-item"><code>export_db &lt;name&gt; &lt;file&gt;</code>: Export a database to a file</li>
+                            <li class="list-group-item"><code>import_db &lt;name&gt; &lt;file&gt; [merge]</code>: Import a database from a file</li>
+                            <li class="list-group-item"><code>add [key=value ...]</code>: Add a new node with properties</li>
+                            <li class="list-group-item"><code>connect &lt;id1&gt; &lt;id2&gt; [label=&lt;label&gt; weight=&lt;weight&gt;]</code>: Connect two nodes</li>
+                            <li class="list-group-item"><code>disconnect &lt;id1&gt; &lt;id2&gt;</code>: Disconnect two nodes</li>
+                            <li class="list-group-item"><code>show &lt;id&gt;</code>: Show node details</li>
+                            <li class="list-group-item"><code>update &lt;id&gt; [key=value ...]</code>: Update node properties</li>
+                            <li class="list-group-item"><code>delete &lt;id&gt;</code>: Delete a node</li>
+<!--                            <li class="list-group-item"><code>find &lt;name&gt;</code>: Find nodes by name</li>-->
+                            <li class="list-group-item"><code>query WHERE &lt;condition&gt; [CAST] [CASE_SENSITIVE]</code>: Query nodes (supports =, >, <, >=, <=, !=, IN, CONTAINS, REGEX, AND, OR, edge.&lt;property&gt;)</li>
+                            <li class="list-group-item"><code>create_index &lt;attribute&gt;</code>: Create an index on an attribute</li>
+                            <li class="list-group-item"><code>drop_index &lt;attribute&gt;</code>: Drop an index</li>
+                            <li class="list-group-item"><code>list_indexes</code>: List all indexes</li>
+                            <li class="list-group-item"><code>list</code>: List all nodes</li>
+                            <li class="list-group-item"><code>path &lt;id1&gt; &lt;id2&gt;</code>: Find path between two nodes</li>
+                            <li class="list-group-item"><code>begin</code>: Begin a transaction</li>
+                            <li class="list-group-item"><code>commit</code>: Commit a transaction</li>
+                            <li class="list-group-item"><code>rollback</code>: Rollback a transaction</li>
+                            <li class="list-group-item"><code>stop</code>: Stop a transaction</li>
+<!--                            <li class="list-group-item"><code>quit</code>: Exit the CLI (not applicable in UI)</li>-->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+                <div class="mb-3">
+                    <h5>Nodes</h5>
+                    <button class="btn btn-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#addNodeModal">Add Node</button>
+<!--                    <div class="input-group mb-2">-->
+<!--                        <input type="text" class="form-control" id="nodeSearch" placeholder="Search nodes">-->
+<!--                        <button class="btn btn-primary" onclick="searchNodes()">Search</button>-->
+<!--                    </div>-->
+                    <select class="form-select" id="nodeList" size="10" onchange="showNodeDetails()"></select>
+                </div>
+
+                <div class="mb-3">
+                    <h5>Query</h5>
+                    <textarea class="form-control mb-2" id="queryInput" rows="3" placeholder="WHERE name='Fatima' AND age>20"></textarea>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="castCheck">
+                        <label class="form-check-label" for="castCheck">Cast non-strings</label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="caseCheck">
+                        <label class="form-check-label" for="caseCheck">Case sensitive</label>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="executeQuery()">Execute Query</button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 main-content p-3">
+                <h4 id="currentDbTitle">No database selected</h4>
+
+                <div class="row mb-3">
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>Graph Visualization</span>
+                                <div>
+                                    <button class="btn btn-sm btn-secondary" onclick="refreshGraph()">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="graph"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Node Details</div>
+                            <div class="card-body node-properties" id="nodeDetails">
+                                Select a node to view details
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-sm btn-danger" id="deleteNodeBtn" disabled onclick="deleteSelectedNode()">Delete</button>
+                                <button class="btn btn-sm btn-primary" id="updateNodeBtn" disabled data-bs-toggle="modal" data-bs-target="#updateNodeModal">Update</button>
+                                <button class="btn btn-sm btn-success" id="connectNodeBtn" disabled data-bs-toggle="modal" data-bs-target="#connectNodeModal">Connect</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Database Operations</div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="beginTransaction()">Begin Transaction</button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="commitTransaction()">Commit</button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="rollbackTransaction()">Rollback</button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="stopTransaction()">Stop</button>
+                                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#indexModal">Manage Indexes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Node Modal -->
+    <div class="modal fade" id="addNodeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Node</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="nodeProperties">
+                        <div class="mb-2 property-row">
+                            <div class="input-group">
+                                <input type="text" class="form-control property-key" placeholder="Key">
+                                <input type="text" class="form-control property-value" placeholder="Value">
+                                <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="addProperty()">Add Property</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAddNode()">Add Node</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Node Modal -->
+    <div class="modal fade" id="updateNodeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Node</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="updateNodeId">
+                    <div id="updateNodeProperties"></div>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="addUpdateProperty()">Add Property</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitUpdateNode()">Update Node</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect Nodes Modal -->
+    <div class="modal fade" id="connectNodeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Connect Nodes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="sourceNodeId">
+                    <div class="mb-3">
+                        <label class="form-label">Target Node ID</label>
+                        <input type="text" class="form-control" id="targetNodeId">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Label (optional)</label>
+                        <input type="text" class="form-control" id="edgeLabel">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Weight (optional)</label>
+                        <input type="number" class="form-control" id="edgeWeight">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitConnectNodes()">Connect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Index Management Modal -->
+    <div class="modal fade" id="indexModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Indexes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="newIndexAttr" placeholder="Attribute name">
+                        <button class="btn btn-primary" onclick="createIndex()">Create Index</button>
+                    </div>
+                    <h6>Existing Indexes</h6>
+                    <ul class="list-group" id="indexList"></ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script>
+        // Global variables
+        let currentDb = null;
+        let selectedNodeId = null;
+        let network = null;
+        let nodesDataset = null;
+        let edgesDataset = null;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDatabases();
+            initGraph();
+        });
+
+        // Initialize the graph visualization
+        function initGraph() {
+            const container = document.getElementById('graph');
+            nodesDataset = new vis.DataSet();
+            edgesDataset = new vis.DataSet();
+
+            const data = {
+                nodes: nodesDataset,
+                edges: edgesDataset
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    borderWidth: 2,
+                    size: 30,
+                    color: {
+                        border: '#2B7CE9',
+                        background: '#97C2FC',
+                        highlight: {
+                            border: '#2B7CE9',
+                            background: '#D2E5FF'
+                        }
+                    },
+                    font: {
+                        size: 12,
+                        color: '#000000'
+                    },
+                    shadow: true
+                },
+                edges: {
+                    width: 2,
+                    color: {
+                        color: '#848484',
+                        highlight: '#848484'
+                    },
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    arrows: {
+                        to: false
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 100,
+                        springConstant: 0.08,
+                        damping: 0.4
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: false
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    selectNode(nodeId);
+                }
+            });
+        }
+
+        // Refresh the graph visualization
+        function refreshGraph() {
+            if (!currentDb) return;
+
+            fetch('/api/nodes')
+                .then(response => response.json())
+                .then(nodes => {
+                    const nodeItems = Object.entries(nodes).map(([id, value]) => ({
+                        id: id,
+                        label: value.name || id.substring(0, 8) + '...',
+                        title: JSON.stringify(value, null, 2)
+                    }));
+
+                    nodesDataset.clear();
+                    nodesDataset.add(nodeItems);
+
+                    // Get edges (this would need to be implemented in your API)
+                    // For now, we'll just clear edges
+                    edgesDataset.clear();
+                })
+                .catch(error => {
+                    console.error('Error refreshing graph:', error);
+                    alert('Error refreshing graph: ' + error.message);
+                });
+        }
+
+        // Database operations
+        function refreshDatabases() {
+            fetch('/api/databases')
+                .then(response => response.json())
+                .then(databases => {
+                    const dbList = document.getElementById('dbList');
+                    dbList.innerHTML = '';
+                    databases.forEach(db => {
+                        const option = document.createElement('option');
+                        option.value = db;
+                        option.textContent = db;
+                        dbList.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error loading databases:', error));
+        }
+
+        function createDatabase() {
+            const dbName = document.getElementById('newDbName').value.trim();
+            if (!dbName) {
+                alert('Please enter a database name');
+                return;
+            }
+
+            fetch('/api/databases', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: dbName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                document.getElementById('newDbName').value = '';
+                refreshDatabases();
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error creating database: ' + error.message);
+            });
+        }
+
+        function deleteDatabase() {
+            const dbList = document.getElementById('dbList');
+            const selectedDb = dbList.value;
+            if (!selectedDb) {
+                alert('Please select a database to delete');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete database '${selectedDb}'?`)) {
+                return;
+            }
+
+            fetch(`/api/databases/${selectedDb}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                refreshDatabases();
+                if (currentDb === selectedDb) {
+                    currentDb = null;
+                    document.getElementById('currentDbTitle').textContent = 'No database selected';
+                    document.getElementById('nodeList').innerHTML = '';
+                    nodesDataset.clear();
+                    edgesDataset.clear();
+                }
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error deleting database: ' + error.message);
+            });
+        }
+
+        function loadDatabase() {
+            const dbList = document.getElementById('dbList');
+            const selectedDb = dbList.value;
+            if (!selectedDb) return;
+
+            fetch(`/api/databases/${selectedDb}`, {
+                method: 'PUT'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                currentDb = selectedDb;
+                document.getElementById('currentDbTitle').textContent = `Current Database: ${currentDb}`;
+                refreshNodes();
+                refreshGraph();
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error loading database: ' + error.message);
+            });
+        }
+
+        // Node operations
+        function refreshNodes() {
+            if (!currentDb) return;
+
+            fetch('/api/nodes')
+                .then(response => response.json())
+                .then(nodes => {
+                    const nodeList = document.getElementById('nodeList');
+                    nodeList.innerHTML = '';
+                    Object.entries(nodes).forEach(([id, value]) => {
+                        const option = document.createElement('option');
+                        option.value = id;
+                        option.textContent = value.name ? `${value.name} (${id.substring(0, 8)}...)` : id;
+                        nodeList.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error loading nodes:', error));
+        }
+
+        function searchNodes() {
+            const searchTerm = document.getElementById('nodeSearch').value.trim();
+            if (!searchTerm) {
+                refreshNodes();
+                return;
+            }
+
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: `WHERE name CONTAINS "${searchTerm}"`
+                })
+            })
+            .then(response => response.json())
+            .then(results => {
+                const nodeList = document.getElementById('nodeList');
+                nodeList.innerHTML = '';
+                results.forEach(result => {
+                    const option = document.createElement('option');
+                    option.value = result.id;
+                    option.textContent = result.value.name ?
+                        `${result.value.name} (${result.id.substring(0, 8)}...)` :
+                        result.id;
+                    nodeList.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error searching nodes:', error));
+        }
+
+        function selectNode(nodeId) {
+            selectedNodeId = nodeId;
+            document.getElementById('deleteNodeBtn').disabled = false;
+            document.getElementById('updateNodeBtn').disabled = false;
+            document.getElementById('connectNodeBtn').disabled = false;
+            document.getElementById('sourceNodeId').value = nodeId;
+            showNodeDetails();
+        }
+
+        function showNodeDetails() {
+            const nodeList = document.getElementById('nodeList');
+            const nodeId = nodeList.value || selectedNodeId;
+            if (!nodeId) return;
+
+            fetch(`/api/nodes/${nodeId}`)
+                .then(response => response.json())
+                .then(node => {
+                    if (node.error) throw new Error(node.error);
+
+                    let details = `<h6>Node ID: ${nodeId.substring(0, 8)}...</h6>`;
+                    details += '<ul class="list-group">';
+                    for (const [key, value] of Object.entries(node)) {
+                        details += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            <strong>${key}:</strong> <span>${JSON.stringify(value)}</span>
+                        </li>`;
+                    }
+                    details += '</ul>';
+
+                    document.getElementById('nodeDetails').innerHTML = details;
+                    selectedNodeId = nodeId;
+                    document.getElementById('deleteNodeBtn').disabled = false;
+                    document.getElementById('updateNodeBtn').disabled = false;
+                    document.getElementById('connectNodeBtn').disabled = false;
+                    document.getElementById('sourceNodeId').value = nodeId;
+                })
+                .catch(error => {
+                    console.error('Error loading node details:', error);
+                    document.getElementById('nodeDetails').innerHTML = `Error loading node: ${error.message}`;
+                });
+        }
+
+        function addProperty() {
+            const container = document.getElementById('nodeProperties');
+            const newRow = document.createElement('div');
+            newRow.className = 'mb-2 property-row';
+            newRow.innerHTML = `
+                <div class="input-group">
+                    <input type="text" class="form-control property-key" placeholder="Key">
+                    <input type="text" class="form-control property-value" placeholder="Value">
+                    <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function addUpdateProperty() {
+            const container = document.getElementById('updateNodeProperties');
+            const newRow = document.createElement('div');
+            newRow.className = 'mb-2 property-row';
+            newRow.innerHTML = `
+                <div class="input-group">
+                    <input type="text" class="form-control property-key" placeholder="Key">
+                    <input type="text" class="form-control property-value" placeholder="Value">
+                    <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeProperty(button) {
+            button.closest('.property-row').remove();
+        }
+
+        function submitAddNode() {
+            const propertyRows = document.querySelectorAll('#nodeProperties .property-row');
+            const nodeData = {};
+
+            propertyRows.forEach(row => {
+                const key = row.querySelector('.property-key').value.trim();
+                const value = row.querySelector('.property-value').value.trim();
+                if (key) {
+                    // Try to parse numbers and booleans
+                    if (!isNaN(value)) {
+                        nodeData[key] = value.includes('.') ? parseFloat(value) : parseInt(value);
+                    } else if (value.toLowerCase() === 'true') {
+                        nodeData[key] = true;
+                    } else if (value.toLowerCase() === 'false') {
+                        nodeData[key] = false;
+                    } else {
+                        nodeData[key] = value;
+                    }
+                }
+            });
+
+            if (Object.keys(nodeData).length === 0) {
+                alert('Please add at least one property');
+                return;
+            }
+
+            fetch('/api/nodes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(nodeData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                document.getElementById('nodeProperties').innerHTML = `
+                    <div class="mb-2 property-row">
+                        <div class="input-group">
+                            <input type="text" class="form-control property-key" placeholder="Key">
+                            <input type="text" class="form-control property-value" placeholder="Value">
+                            <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                        </div>
+                    </div>
+                `;
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addNodeModal'));
+                modal.hide();
+                refreshNodes();
+                refreshGraph();
+                alert(`Node added with ID: ${data.id}`);
+            })
+            .catch(error => {
+                alert('Error adding node: ' + error.message);
+            });
+        }
+
+        function prepareUpdateNode() {
+            if (!selectedNodeId) return;
+
+            fetch(`/api/nodes/${selectedNodeId}`)
+                .then(response => response.json())
+                .then(node => {
+                    if (node.error) throw new Error(node.error);
+
+                    const container = document.getElementById('updateNodeProperties');
+                    container.innerHTML = '';
+                    document.getElementById('updateNodeId').value = selectedNodeId;
+
+                    for (const [key, value] of Object.entries(node)) {
+                        const row = document.createElement('div');
+                        row.className = 'mb-2 property-row';
+                        row.innerHTML = `
+                            <div class="input-group">
+                                <input type="text" class="form-control property-key" value="${key}" readonly>
+                                <input type="text" class="form-control property-value" value="${JSON.stringify(value).replace(/"/g, '')}">
+                                <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                            </div>
+                        `;
+                        container.appendChild(row);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error preparing node update:', error);
+                    alert('Error preparing node update: ' + error.message);
+                });
+        }
+
+        function submitUpdateNode() {
+            const nodeId = document.getElementById('updateNodeId').value;
+            if (!nodeId) return;
+
+            const propertyRows = document.querySelectorAll('#updateNodeProperties .property-row');
+            const updateData = {};
+
+            propertyRows.forEach(row => {
+                const key = row.querySelector('.property-key').value.trim();
+                const value = row.querySelector('.property-value').value.trim();
+                if (key) {
+                    // Try to parse numbers and booleans
+                    if (!isNaN(value)) {
+                        updateData[key] = value.includes('.') ? parseFloat(value) : parseInt(value);
+                    } else if (value.toLowerCase() === 'true') {
+                        updateData[key] = true;
+                    } else if (value.toLowerCase() === 'false') {
+                        updateData[key] = false;
+                    } else {
+                        updateData[key] = value;
+                    }
+                }
+            });
+
+            if (Object.keys(updateData).length === 0) {
+                alert('Please add at least one property');
+                return;
+            }
+
+            fetch(`/api/nodes/${nodeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                const modal = bootstrap.Modal.getInstance(document.getElementById('updateNodeModal'));
+                modal.hide();
+                refreshNodes();
+                refreshGraph();
+                showNodeDetails();
+                alert('Node updated successfully');
+            })
+            .catch(error => {
+                alert('Error updating node: ' + error.message);
+            });
+        }
+
+        function deleteSelectedNode() {
+            if (!selectedNodeId) return;
+
+            if (!confirm('Are you sure you want to delete this node?')) {
+                return;
+            }
+
+            fetch(`/api/nodes/${selectedNodeId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                refreshNodes();
+                refreshGraph();
+                document.getElementById('nodeDetails').innerHTML = 'Select a node to view details';
+                document.getElementById('deleteNodeBtn').disabled = true;
+                document.getElementById('updateNodeBtn').disabled = true;
+                document.getElementById('connectNodeBtn').disabled = true;
+                selectedNodeId = null;
+                alert('Node deleted successfully');
+            })
+            .catch(error => {
+                alert('Error deleting node: ' + error.message);
+            });
+        }
+
+        // Edge operations
+        function submitConnectNodes() {
+            const sourceId = document.getElementById('sourceNodeId').value;
+            const targetId = document.getElementById('targetNodeId').value.trim();
+            const label = document.getElementById('edgeLabel').value.trim();
+            const weight = document.getElementById('edgeWeight').value.trim();
+
+            if (!sourceId || !targetId) {
+                alert('Please enter both source and target node IDs');
+                return;
+            }
+
+            const edgeData = {
+                source: sourceId,
+                target: targetId
+            };
+
+            if (label) edgeData.label = label;
+            if (weight) edgeData.weight = parseFloat(weight);
+
+            fetch('/api/edges', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(edgeData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                const modal = bootstrap.Modal.getInstance(document.getElementById('connectNodeModal'));
+                modal.hide();
+                refreshGraph();
+                alert('Nodes connected successfully');
+            })
+            .catch(error => {
+                alert('Error connecting nodes: ' + error.message);
+            });
+        }
+
+                // Query operations
+        function executeQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            const castNonStrings = document.getElementById('castCheck').checked;
+            const caseSensitive = document.getElementById('caseCheck').checked;
+
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: query,
+                    cast_non_strings: castNonStrings,
+                    case_sensitive: caseSensitive
+                })
+            })
+            .then(response => response.json())
+            .then(results => {
+                const nodeList = document.getElementById('nodeList');
+                nodeList.innerHTML = '';
+
+                if (results.length === 0) {
+                    alert('No nodes match the query');
+                    return;
+                }
+
+                results.forEach(result => {
+                    const option = document.createElement('option');
+                    option.value = result.id;
+                    option.textContent = result.value.name ?
+                        `${result.value.name} (${result.id.substring(0, 8)}...)` :
+                        result.id;
+                    nodeList.appendChild(option);
+                });
+
+                alert(`Found ${results.length} matching nodes`);
+            })
+            .catch(error => {
+                alert('Error executing query: ' + error.message);
+            });
+        }
+
+        // Index operations
+        function loadIndexes() {
+            fetch('/api/indexes')
+                .then(response => response.json())
+                .then(indexes => {
+                    const indexList = document.getElementById('indexList');
+                    indexList.innerHTML = '';
+
+                    indexes.forEach(index => {
+                        const item = document.createElement('li');
+                        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        item.textContent = index;
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'btn btn-sm btn-danger';
+                        deleteBtn.textContent = 'Delete';
+                        deleteBtn.onclick = () => dropIndex(index);
+
+                        item.appendChild(deleteBtn);
+                        indexList.appendChild(item);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading indexes:', error);
+                });
+        }
+
+        function createIndex() {
+            const attribute = document.getElementById('newIndexAttr').value.trim();
+            if (!attribute) {
+                alert('Please enter an attribute name');
+                return;
+            }
+
+            fetch('/api/indexes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ attribute: attribute })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                document.getElementById('newIndexAttr').value = '';
+                loadIndexes();
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error creating index: ' + error.message);
+            });
+        }
+
+        function dropIndex(attribute) {
+            if (!confirm(`Are you sure you want to drop index on '${attribute}'?`)) {
+                return;
+            }
+
+            fetch(`/api/indexes/${attribute}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                loadIndexes();
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error dropping index: ' + error.message);
+            });
+        }
+
+        // Transaction operations
+        function beginTransaction() {
+            fetch('/api/transaction', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error beginning transaction: ' + error.message);
+            });
+        }
+
+        function commitTransaction() {
+            fetch('/api/transaction/commit', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error committing transaction: ' + error.message);
+            });
+        }
+
+        function rollbackTransaction() {
+            fetch('/api/transaction/rollback', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                refreshNodes();
+                refreshGraph();
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error rolling back transaction: ' + error.message);
+            });
+        }
+
+        function stopTransaction() {
+            fetch('/api/transaction/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                alert(data.message);
+            })
+            .catch(error => {
+                alert('Error stopping transaction: ' + error.message);
+            });
+        }
+
+        // Path finding
+        function findPath() {
+            const sourceId = prompt('Enter source node ID:');
+            const targetId = prompt('Enter target node ID:');
+
+            if (!sourceId || !targetId) return;
+
+            fetch('/api/path', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: sourceId,
+                    target: targetId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+
+                if (data.path) {
+                    alert(`Path found: ${data.path.join(' -> ')}`);
+                } else {
+                    alert('No path found between the nodes');
+                }
+            })
+            .catch(error => {
+                alert('Error finding path: ' + error.message);
+            });
+        }
+
+        // Initialize modals
+        document.getElementById('addNodeModal').addEventListener('show.bs.modal', function() {
+            document.getElementById('nodeProperties').innerHTML = `
+                <div class="mb-2 property-row">
+                    <div class="input-group">
+                        <input type="text" class="form-control property-key" placeholder="Key">
+                        <input type="text" class="form-control property-value" placeholder="Value">
+                        <button class="btn btn-outline-danger" onclick="removeProperty(this)">×</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('updateNodeModal').addEventListener('show.bs.modal', prepareUpdateNode);
+        document.getElementById('indexModal').addEventListener('show.bs.modal', loadIndexes);
+
+
+
+
+
+
+
+
+        function executeCommand() {
+    const command = document.getElementById('commandInput').value.trim();
+    if (!command) {
+        alert('Please enter a command');
+        return;
+    }
+
+    const parts = command.split(' ');
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
+    if (cmd === 'create_db' && args.length === 1) {
+        document.getElementById('newDbName').value = args[0];
+        createDatabase();
+        document.getElementById('commandInput').value = ''; // Clear the command input
+    } else {
+        alert('Unrecognized command. Use: create_db <name>');
+    }
+}
+
+
+
+
+
+
+
+
+        function executeCommand() {
+    const command = document.getElementById('commandInput').value.trim();
+    if (!command) {
+        alert('Please enter a command');
+        return;
+    }
+
+    // Split the command while preserving quoted strings
+    const parts = command.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).map(arg => arg.replace(/^['"](.*)['"]$/, '$1'));
+
+    try {
+        switch (cmd) {
+            // Database operations
+            case 'create_db':
+                if (args.length !== 1) throw new Error('Usage: create_db <name>');
+                document.getElementById('newDbName').value = args[0];
+                createDatabase();
+                break;
+            case 'delete_db':
+                if (args.length !== 1) throw new Error('Usage: delete_db <name>');
+                document.getElementById('dbList').value = args[0];
+                deleteDatabase();
+                break;
+            case 'rename_db':
+                if (args.length !== 2) throw new Error('Usage: rename_db <old> <new>');
+                document.getElementById('dbList').value = args[0];
+                // Need to implement rename functionality in the UI or call the API directly
+                fetch(`/api/databases/${args[0]}/rename`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_name: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+            case 'list_dbs':
+                if (args.length !== 0) throw new Error('Usage: list_dbs');
+                refreshDatabases();
+                break;
+            case 'use_db':
+                if (args.length !== 1) throw new Error('Usage: use_db <name>');
+                document.getElementById('dbList').value = args[0];
+                loadDatabase();
+                break;
+            case 'backup_db':
+                if (args.length !== 2) throw new Error('Usage: backup_db <name> <file>');
+                // Need to implement backup functionality in the UI or call the API directly
+                fetch('/api/backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], backup_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    alert(data.message);
+                });
+                break;
+            case 'restore_db':
+                if (args.length !== 2) throw new Error('Usage: restore_db <name> <file>');
+                // Need to implement restore functionality in the UI or call the API directly
+                fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], backup_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+            case 'export_db':
+                if (args.length !== 2) throw new Error('Usage: export_db <name> <file>');
+                // Need to implement export functionality in the UI or call the API directly
+                fetch('/api/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], export_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    alert(data.message);
+                });
+                break;
+            case 'import_db':
+                if (args.length < 2 || args.length > 3) throw new Error('Usage: import_db <name> <file> [merge]');
+                const merge = args.length === 3 && args[2].toLowerCase() === 'merge';
+                // Need to implement import functionality in the UI or call the API directly
+                fetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        db_name: args[0],
+                        import_file: args[1],
+                        merge: merge
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+
+            // Node operations
+            case 'add':
+                if (args.length < 1) throw new Error('Usage: add [key=value ...]');
+                // Open the add node modal and populate with properties
+                const modal = new bootstrap.Modal(document.getElementById('addNodeModal'));
+                modal.show();
+
+                // Clear existing properties
+                document.getElementById('nodeProperties').innerHTML = '';
+
+                // Add properties from command
+                args.forEach(arg => {
+                    if (!arg.includes('=')) throw new Error(`Invalid property format: ${arg}`);
+                    const [key, value] = arg.split('=');
+                    addProperty();
+                    const rows = document.querySelectorAll('#nodeProperties .property-row');
+                    const lastRow = rows[rows.length - 1];
+                    lastRow.querySelector('.property-key').value = key;
+                    lastRow.querySelector('.property-value').value = value;
+                });
+                break;
+            case 'connect':
+                if (args.length < 2) throw new Error('Usage: connect <id1> <id2> [label=<label> weight=<weight>]');
+                const sourceId = args[0];
+                const targetId = args[1];
+                let label = null;
+                let weight = null;
+
+                args.slice(2).forEach(arg => {
+                    if (arg.startsWith('label=')) {
+                        label = arg.substring(6);
+                    } else if (arg.startsWith('weight=')) {
+                        weight = parseFloat(arg.substring(7));
+                    } else {
+                        throw new Error(`Invalid argument: ${arg}`);
+                    }
+                });
+
+                fetch('/api/edges', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: sourceId,
+                        target: targetId,
+                        label: label,
+                        weight: weight
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'disconnect':
+                if (args.length !== 2) throw new Error('Usage: disconnect <id1> <id2>');
+                fetch('/api/edges', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: args[0],
+                        target: args[1]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'show':
+                if (args.length !== 1) throw new Error('Usage: show <id>');
+                document.getElementById('nodeList').value = args[0];
+                showNodeDetails();
+                break;
+            case 'update':
+                if (args.length < 2) throw new Error('Usage: update <id> [key=value ...]');
+                const nodeId = args[0];
+                const updateData = {};
+
+                args.slice(1).forEach(arg => {
+                    if (!arg.includes('=')) throw new Error(`Invalid property format: ${arg}`);
+                    const [key, value] = arg.split('=');
+                    updateData[key] = value;
+                });
+
+                fetch(`/api/nodes/${nodeId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshNodes();
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'delete':
+                if (args.length !== 1) throw new Error('Usage: delete <id>');
+                if (!confirm(`Are you sure you want to delete node ${args[0]}?`)) return;
+                fetch(`/api/nodes/${args[0]}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshNodes();
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'find':
+                if (args.length !== 1) throw new Error('Usage: find <name>');
+                document.getElementById('nodeSearch').value = args[0];
+                searchNodes();
+                break;
+            case 'query':
+                if (args.length < 1) throw new Error('Usage: query WHERE <condition> [CAST] [CASE_SENSITIVE]');
+                let queryStr = args.join(' ');
+                let castNonStrings = false;
+                let caseSensitive = false;
+
+                // Check for CAST and CASE_SENSITIVE flags
+                if (queryStr.endsWith(' CAST CASE_SENSITIVE')) {
+                    castNonStrings = true;
+                    caseSensitive = true;
+                    queryStr = queryStr.replace(/ CAST CASE_SENSITIVE$/, '');
+                } else if (queryStr.endsWith(' CAST')) {
+                    castNonStrings = true;
+                    queryStr = queryStr.replace(/ CAST$/, '');
+                } else if (queryStr.endsWith(' CASE_SENSITIVE')) {
+                    caseSensitive = true;
+                    queryStr = queryStr.replace(/ CASE_SENSITIVE$/, '');
+                }
+
+                document.getElementById('queryInput').value = queryStr;
+                document.getElementById('castCheck').checked = castNonStrings;
+                document.getElementById('caseCheck').checked = caseSensitive;
+                executeQuery();
+                break;
+
+            // Index operations
+            case 'create_index':
+                if (args.length !== 1) throw new Error('Usage: create_index <attribute>');
+                document.getElementById('newIndexAttr').value = args[0];
+                createIndex();
+                break;
+            case 'drop_index':
+                if (args.length !== 1) throw new Error('Usage: drop_index <attribute>');
+                dropIndex(args[0]);
+                break;
+            case 'list_indexes':
+                if (args.length !== 0) throw new Error('Usage: list_indexes');
+                loadIndexes();
+                const indexModal = new bootstrap.Modal(document.getElementById('indexModal'));
+                indexModal.show();
+                break;
+
+            // Graph operations
+            case 'list':
+                if (args.length !== 0) throw new Error('Usage: list');
+                refreshNodes();
+                refreshGraph();
+                break;
+            case 'path':
+                if (args.length !== 2) throw new Error('Usage: path <id1> <id2>');
+                fetch('/api/path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: args[0],
+                        target: args[1]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    if (data.path) {
+                        alert(`Path found: ${data.path.join(' -> ')}`);
+                    } else {
+                        alert('No path found between the nodes');
+                    }
+                });
+                break;
+
+            // Transaction operations
+            case 'begin':
+                if (args.length !== 0) throw new Error('Usage: begin');
+                beginTransaction();
+                break;
+            case 'commit':
+                if (args.length !== 0) throw new Error('Usage: commit');
+                commitTransaction();
+                break;
+            case 'rollback':
+                if (args.length !== 0) throw new Error('Usage: rollback');
+                rollbackTransaction();
+                break;
+            case 'stop':
+                if (args.length !== 0) throw new Error('Usage: stop');
+                stopTransaction();
+                break;
+
+            case 'quit':
+                if (args.length !== 0) throw new Error('Usage: quit');
+                alert('Cannot quit from web interface. Close the browser tab instead.');
+                break;
+
+            default:
+                throw new Error(`Unknown command: ${cmd}`);
+        }
+
+        // Clear the command input if execution was successful
+        document.getElementById('commandInput').value = '';
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+        function executeCommand() {
+    const command = document.getElementById('commandInput').value.trim();
+    if (!command) {
+        alert('Please enter a command');
+        return;
+    }
+
+    // Split command while preserving quoted strings
+    const parts = command.match(/("[^"]*"|'[^']*'|\S+)/g) || [];
+    if (!parts.length) {
+        alert('Invalid command format');
+        return;
+    }
+
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).map(arg => arg.replace(/^['"](.*)['"]$/, '$1'));
+
+    try {
+        switch (cmd) {
+            // Database operations
+            case 'create_db':
+                if (args.length !== 1) throw new Error('Usage: create_db <name>');
+                document.getElementById('newDbName').value = args[0];
+                createDatabase();
+                break;
+            case 'delete_db':
+                if (args.length !== 1) throw new Error('Usage: delete_db <name>');
+                document.getElementById('dbList').value = args[0];
+                deleteDatabase();
+                break;
+            case 'rename_db':
+                if (args.length !== 2) throw new Error('Usage: rename_db <old> <new>');
+                document.getElementById('dbList').value = args[0];
+                fetch(`/api/databases/${args[0]}/rename`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_name: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+            case 'list_dbs':
+                if (args.length !== 0) throw new Error('Usage: list_dbs');
+                refreshDatabases();
+                break;
+            case 'use_db':
+                if (args.length !== 1) throw new Error('Usage: use_db <name>');
+                document.getElementById('dbList').value = args[0];
+                loadDatabase();
+                break;
+            case 'backup_db':
+                if (args.length !== 2) throw new Error('Usage: backup_db <name> <file>');
+                fetch('/api/backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], backup_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    alert(data.message);
+                });
+                break;
+            case 'restore_db':
+                if (args.length !== 2) throw new Error('Usage: restore_db <name> <file>');
+                fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], backup_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+            case 'export_db':
+                if (args.length !== 2) throw new Error('Usage: export_db <name> <file>');
+                fetch('/api/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_name: args[0], export_file: args[1] })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    alert(data.message);
+                });
+                break;
+            case 'import_db':
+                if (args.length < 2 || args.length > 3) throw new Error('Usage: import_db <name> <file> [merge]');
+                const merge = args.length === 3 && args[2].toLowerCase() === 'merge';
+                fetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        db_name: args[0],
+                        import_file: args[1],
+                        merge: merge
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshDatabases();
+                    alert(data.message);
+                });
+                break;
+
+            // Node operations
+            case 'add':
+                if (args.length < 1) throw new Error('Usage: add [key=value ...]');
+                const modal = new bootstrap.Modal(document.getElementById('addNodeModal'));
+                modal.show();
+                document.getElementById('nodeProperties').innerHTML = '';
+                args.forEach(arg => {
+                    if (!arg.includes('=')) throw new Error(`Invalid property format: ${arg}`);
+                    const [key, value] = arg.split('=');
+                    addProperty();
+                    const rows = document.querySelectorAll('#nodeProperties .property-row');
+                    const lastRow = rows[rows.length - 1];
+                    lastRow.querySelector('.property-key').value = key;
+                    lastRow.querySelector('.property-value').value = value;
+                });
+                break;
+            case 'connect':
+                if (args.length < 2) throw new Error('Usage: connect <id1> <id2> [label=<label> weight=<weight>]');
+                const sourceId = args[0];
+                const targetId = args[1];
+                let label = null;
+                let weight = null;
+                args.slice(2).forEach(arg => {
+                    if (arg.startsWith('label=')) {
+                        label = arg.substring(6);
+                    } else if (arg.startsWith('weight=')) {
+                        weight = parseFloat(arg.substring(7));
+                    } else {
+                        throw new Error(`Invalid argument: ${arg}`);
+                    }
+                });
+                fetch('/api/edges', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: sourceId,
+                        target: targetId,
+                        label: label,
+                        weight: weight
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'disconnect':
+                if (args.length !== 2) throw new Error('Usage: disconnect <id1> <id2>');
+                fetch('/api/edges', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: args[0],
+                        target: args[1]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'show':
+                if (args.length !== 1) throw new Error('Usage: show <id>');
+                document.getElementById('nodeList').value = args[0];
+                showNodeDetails();
+                break;
+            case 'update':
+                if (args.length < 2) throw new Error('Usage: update <id> [key=value ...]');
+                const nodeId = args[0];
+                const updateData = {};
+                args.slice(1).forEach(arg => {
+                    if (!arg.includes('=')) throw new Error(`Invalid property format: ${arg}`);
+                    const [key, value] = arg.split('=');
+                    updateData[key] = value;
+                });
+                fetch(`/api/nodes/${nodeId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshNodes();
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'delete':
+                if (args.length !== 1) throw new Error('Usage: delete <id>');
+                if (!confirm(`Are you sure you want to delete node ${args[0]}?`)) return;
+                fetch(`/api/nodes/${args[0]}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    refreshNodes();
+                    refreshGraph();
+                    alert(data.message);
+                });
+                break;
+            case 'find':
+                if (args.length !== 1) throw new Error('Usage: find <name>');
+                document.getElementById('nodeSearch').value = args[0];
+                searchNodes();
+                break;
+            case 'query':
+                if (args.length < 1) throw new Error('Usage: query WHERE <condition> [CAST] [CASE_SENSITIVE]');
+                // Join all arguments to preserve the query string
+                let queryStr = command.substring(command.indexOf('query') + 5).trim();
+                let castNonStrings = false;
+                let caseSensitive = false;
+
+                // Check for CAST and CASE_SENSITIVE flags at the end
+                if (queryStr.toUpperCase().endsWith(' CAST CASE_SENSITIVE')) {
+                    castNonStrings = true;
+                    caseSensitive = true;
+                    queryStr = queryStr.substring(0, queryStr.length - 19).trim();
+                } else if (queryStr.toUpperCase().endsWith(' CAST')) {
+                    castNonStrings = true;
+                    queryStr = queryStr.substring(0, queryStr.length - 5).trim();
+                } else if (queryStr.toUpperCase().endsWith(' CASE_SENSITIVE')) {
+                    caseSensitive = true;
+                    queryStr = queryStr.substring(0, queryStr.length - 14).trim();
+                }
+
+                if (!queryStr.toUpperCase().startsWith('WHERE')) {
+                    throw new Error('Query must start with WHERE');
+                }
+
+                document.getElementById('queryInput').value = queryStr;
+                document.getElementById('castCheck').checked = castNonStrings;
+                document.getElementById('caseCheck').checked = caseSensitive;
+                executeQuery();
+                break;
+
+            // Index operations
+            case 'create_index':
+                if (args.length !== 1) throw new Error('Usage: create_index <attribute>');
+                document.getElementById('newIndexAttr').value = args[0];
+                createIndex();
+                break;
+            case 'drop_index':
+                if (args.length !== 1) throw new Error('Usage: drop_index <attribute>');
+                dropIndex(args[0]);
+                break;
+            case 'list_indexes':
+                if (args.length !== 0) throw new Error('Usage: list_indexes');
+                loadIndexes();
+                const indexModal = new bootstrap.Modal(document.getElementById('indexModal'));
+                indexModal.show();
+                break;
+
+            // Graph operations
+            case 'list':
+                if (args.length !== 0) throw new Error('Usage: list');
+                refreshNodes();
+                refreshGraph();
+                break;
+            case 'path':
+                if (args.length !== 2) throw new Error('Usage: path <id1> <id2>');
+                fetch('/api/path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: args[0],
+                        target: args[1]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    if (data.path) {
+                        alert(`Path found: ${data.path.join(' -> ')}`);
+                    } else {
+                        alert('No path found between the nodes');
+                    }
+                });
+                break;
+
+            // Transaction operations
+            case 'begin':
+                if (args.length !== 0) throw new Error('Usage: begin');
+                beginTransaction();
+                break;
+            case 'commit':
+                if (args.length !== 0) throw new Error('Usage: commit');
+                commitTransaction();
+                break;
+            case 'rollback':
+                if (args.length !== 0) throw new Error('Usage: rollback');
+                rollbackTransaction();
+                break;
+            case 'stop':
+                if (args.length !== 0) throw new Error('Usage: stop');
+                stopTransaction();
+                break;
+
+            case 'quit':
+                if (args.length !== 0) throw new Error('Usage: quit');
+                alert('Cannot quit from web interface. Close the browser tab instead.');
+                break;
+
+            default:
+                throw new Error(`Unknown command: ${cmd}`);
+        }
+
+        // Clear the command input if execution was successful
+        document.getElementById('commandInput').value = '';
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+
+
+
+
+
+
+        function showNodeDetails() {
+    const nodeList = document.getElementById('nodeList');
+    const nodeId = nodeList.value || selectedNodeId;
+    if (!nodeId) return;
+
+    fetch(`/api/nodes/${nodeId}`)
+        .then(response => response.json())
+        .then(node => {
+            if (node.error) throw new Error(node.error);
+
+            let details = `<h6>Node ID: ${nodeId}</h6>`; // Changed from nodeId.substring(0, 8)...
+            details += '<ul class="list-group">';
+            for (const [key, value] of Object.entries(node)) {
+                details += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <strong>${key}:</strong> <span>${JSON.stringify(value)}</span>
+                </li>`;
+            }
+            details += '</ul>';
+
+            document.getElementById('nodeDetails').innerHTML = details;
+            selectedNodeId = nodeId;
+            document.getElementById('deleteNodeBtn').disabled = false;
+            document.getElementById('updateNodeBtn').disabled = false;
+            document.getElementById('connectNodeBtn').disabled = false;
+            document.getElementById('sourceNodeId').value = nodeId;
+        })
+        .catch(error => {
+            console.error('Error loading node details:', error);
+            document.getElementById('nodeDetails').innerHTML = `Error loading node: ${error.message}`;
+        });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        function refreshNodes() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(nodes => {
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            Object.entries(nodes).forEach(([id, value]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                // Prioritize 'name', then 'age', then use ID as fallback
+                let displayLabel = value.name || value.age || Object.values(value)[0] || id;
+                option.textContent = displayLabel ?
+                    `${displayLabel} (${id.substring(0, 8)}...)` :
+                    id.substring(0, 8) + '...';
+                nodeList.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading nodes:', error));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+        function refreshGraph() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(data => {
+            // Clear existing datasets
+            nodesDataset.clear();
+            edgesDataset.clear();
+
+            // Prepare nodes for visualization
+            const nodeItems = Object.entries(data).map(([id, node]) => ({
+                id: id,
+                label: node.value.name || node.value.age || Object.values(node.value)[0] || id.substring(0, 8) + '...',
+                title: JSON.stringify(node.value, null, 2)
+            }));
+
+            // Prepare edges for visualization
+            const edgeItems = [];
+            const seenEdges = new Set(); // To avoid duplicate edges (since edges are bidirectional)
+            Object.entries(data).forEach(([sourceId, node]) => {
+                Object.entries(node.edges).forEach(([targetId, edgeProps]) => {
+                    // Create a unique edge ID to avoid duplicates
+                    const edgeKey = [sourceId, targetId].sort().join('-');
+                    if (!seenEdges.has(edgeKey)) {
+                        seenEdges.add(edgeKey);
+                        const edge = {
+                            id: edgeKey,
+                            from: sourceId,
+                            to: targetId
+                        };
+                        // Add label if it exists
+                        if (edgeProps.label) {
+                            edge.label = edgeProps.label;
+                        }
+                        // Add weight as a title or visual property if it exists
+                        if (edgeProps.weight) {
+                            edge.title = `Weight: ${edgeProps.weight}`;
+                            // Optionally, adjust edge width based on weight
+                            edge.width = Math.min(5, Math.max(1, edgeProps.weight / 10));
+                        }
+                        edgeItems.push(edge);
+                    }
+                });
+            });
+
+            // Update datasets
+            nodesDataset.add(nodeItems);
+            edgesDataset.add(edgeItems);
+        })
+        .catch(error => {
+            console.error('Error refreshing graph:', error);
+            alert('Error refreshing graph: ' + error.message);
+        });
+}
+
+
+
+
+
+
+
+
+
+
+
+        function initGraph() {
+    const container = document.getElementById('graph');
+    nodesDataset = new vis.DataSet();
+    edgesDataset = new vis.DataSet();
+
+    const data = {
+        nodes: nodesDataset,
+        edges: edgesDataset
+    };
+
+    const options = {
+        nodes: {
+            shape: 'box',
+            borderWidth: 2,
+            size: 30,
+            color: {
+                border: '#2B7CE9',
+                background: '#97C2FC',
+                highlight: {
+                    border: '#2B7CE9',
+                    background: '#D2E5FF'
+                }
+            },
+            font: {
+                size: 12,
+                color: '#000000'
+            },
+            shadow: true
+        },
+        edges: {
+            width: 2, // Default width
+            color: {
+                color: '#848484',
+                highlight: '#848484'
+            },
+            font: {
+                size: 10,
+                align: 'middle',
+                color: '#000000'
+            },
+            smooth: {
+                type: 'continuous'
+            },
+            arrows: {
+                to: false // Undirected edges
+            },
+            scaling: {
+                min: 1,
+                max: 5,
+                label: {
+                    enabled: true
+                }
+            }
+        },
+        physics: {
+            enabled: true,
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: -50,
+                centralGravity: 0.01,
+                springLength: 100,
+                springConstant: 0.08,
+                damping: 0.4
+            },
+            stabilization: {
+                iterations: 1000
+            }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            hideEdgesOnDrag: false,
+            dragNodes: true,
+            dragView: true,
+            zoomView: true
+        }
+    };
+
+    network = new vis.Network(container, data, options);
+
+    network.on('click', function(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            selectNode(nodeId);
+        }
+    });
+}
+
+
+
+
+
+
+
+
+
+
+        function refreshGraph() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(data => {
+            // Clear existing datasets and select options
+            nodesDataset.clear();
+            edgesDataset.clear();
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = ''; // Clear existing options
+
+            // Prepare nodes for visualization
+            const nodeItems = Object.entries(data).map(([id, node]) => ({
+                id: id,
+                label: node.value.name || node.value.age || Object.values(node.value)[0] || id.substring(0, 8) + '...',
+                title: JSON.stringify(node.value, null, 2)
+            }));
+
+            // Populate nodeList select
+            Object.entries(data).forEach(([id, node]) => {
+                const name = node.value.name || 'Unnamed Node';
+                const option = document.createElement('option');
+                option.value = id; // Set the value to the full id
+                option.textContent = `${name} (${id})`; // Display name and full id
+                nodeList.appendChild(option);
+            });
+
+            // Prepare edges for visualization
+            const edgeItems = [];
+            const seenEdges = new Set();
+            Object.entries(data).forEach(([sourceId, node]) => {
+                Object.entries(node.edges).forEach(([targetId, edgeProps]) => {
+                    const edgeKey = [sourceId, targetId].sort().join('-');
+                    if (!seenEdges.has(edgeKey)) {
+                        seenEdges.add(edgeKey);
+                        const edge = {
+                            id: edgeKey,
+                            from: sourceId,
+                            to: targetId
+                        };
+                        if (edgeProps.label) {
+                            edge.label = edgeProps.label;
+                        }
+                        if (edgeProps.weight) {
+                            edge.title = `Weight: ${edgeProps.weight}`;
+                            edge.width = Math.min(5, Math.max(1, edgeProps.weight / 10));
+                        }
+                        edgeItems.push(edge);
+                    }
+                });
+            });
+
+            // Update datasets
+            nodesDataset.add(nodeItems);
+            edgesDataset.add(edgeItems);
+        })
+        .catch(error => {
+            console.error('Error refreshing graph:', error);
+            alert('Error refreshing graph: ' + error.message);
+        });
+}
+
+
+
+
+
+
+
+
+
+
+        function refreshNodes() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(nodes => {
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            Object.entries(nodes).forEach(([id, node]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                // Access the nested 'value' object
+                const nodeValue = node.value;
+                // Prioritize 'name', then 'age', then use first property or ID as fallback
+                let displayLabel = nodeValue.name || nodeValue.age || Object.values(nodeValue)[0] || id;
+                option.textContent = displayLabel ?
+                    `${displayLabel} (${id.substring(0, 8)}...)` :
+                    id.substring(0, 8) + '...';
+                nodeList.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading nodes:', error));
+}
+
+
+
+
+
+
+
+
+
+        function refreshNodes() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(nodes => {
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            Object.entries(nodes).forEach(([id, node]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                // Access the nested 'value' object
+                const nodeValue = node.value;
+                // Prioritize 'name', then 'age', then first property or 'Unnamed Node' as fallback
+                let displayLabel = nodeValue.name || nodeValue.age || Object.values(nodeValue)[0] || 'Unnamed Node';
+                option.textContent = `${displayLabel} (${id.substring(0, 8)}...)`;
+                nodeList.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading nodes:', error));
+}
+
+
+
+
+
+
+
+
+        function refreshNodes() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(nodes => {
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            Object.entries(nodes).forEach(([id, node]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                // Access the nested 'value' object
+                const nodeValue = node.value;
+                // Debug: Log the nodeValue to inspect its structure
+                console.log(`Node ${id}:`, nodeValue);
+                // Prioritize 'name', then 'age', then first property or 'Unnamed Node' as fallback
+                let displayLabel = nodeValue.name || nodeValue.age || Object.values(nodeValue)[0] || 'Unnamed Node';
+                option.textContent = `${displayLabel} (${id.substring(0, 8)}...)`;
+                nodeList.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading nodes:', error));
+}
+
+
+        function refreshNodes() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(nodes => {
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            Object.entries(nodes).forEach(([id, node]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                // Access the nested 'value' object
+                const nodeValue = node.value;
+                // Debug: Log the nodeValue to inspect its structure
+                console.log(`Node ${id}:`, nodeValue);
+                // Prioritize 'name', then 'age' (case-insensitive), then first property or 'Unnamed Node'
+                let displayLabel = nodeValue.name ||
+                                 nodeValue.age ||
+                                 nodeValue.Age ||
+                                 (nodeValue['age'] ? nodeValue['age'] : null) ||
+                                 Object.values(nodeValue)[0] ||
+                                 'Unnamed Node';
+                option.textContent = `${displayLabel} (${id.substring(0, 8)}...)`;
+                nodeList.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading nodes:', error));
+}
+
+
+
+
+
+
+
+
+
+        function refreshGraph() {
+    if (!currentDb) return;
+
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(data => {
+            nodesDataset.clear();
+            edgesDataset.clear();
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+
+            const nodeItems = Object.entries(data).map(([id, node]) => {
+                const nodeValue = node.value;
+                // Debug: Log the node and its label
+                console.log(`Node ${id}:`, nodeValue);
+                const rawLabel = nodeValue.name || node.value.age || node.value.Age || (node.value['age'] ? node.value['age'] : null) || Object.values(node.value)[0] || id.substring(0, 8) + '...';
+                console.log(`Raw Label for ${id}:`, rawLabel);
+                return {
+                    id: id,
+                    label: String(rawLabel), // Ensure label is a string
+                    title: JSON.stringify(node.value, null, 2)
+                };
+            });
+
+            Object.entries(data).forEach(([id, node]) => {
+                const nodeValue = node.value;
+                const displayLabel = nodeValue.name ||
+                                    node.value.age ||
+                                    node.value.Age ||
+                                    (node.value['age'] ? node.value['age'] : null) ||
+                                    Object.values(node.value)[0] ||
+                                    'Unnamed Node';
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = `${displayLabel} (${id.substring(0, 8)}...)`;
+                nodeList.appendChild(option);
+            });
+
+            const edgeItems = [];
+            const seenEdges = new Set();
+            Object.entries(data).forEach(([sourceId, node]) => {
+                Object.entries(node.edges).forEach(([targetId, edgeProps]) => {
+                    const edgeKey = [sourceId, targetId].sort().join('-');
+                    if (!seenEdges.has(edgeKey)) {
+                        seenEdges.add(edgeKey);
+                        const edge = {
+                            id: edgeKey,
+                            from: sourceId,
+                            to: targetId
+                        };
+                        if (edgeProps.label) {
+                            edge.label = edgeProps.label;
+                        }
+                        if (edgeProps.weight) {
+                            edge.title = `Weight: ${edgeProps.weight}`;
+                            edge.width = Math.min(5, Math.max(1, edgeProps.weight / 10));
+                        }
+                        edgeItems.push(edge);
+                    }
+                });
+            });
+
+            nodesDataset.add(nodeItems);
+            edgesDataset.add(edgeItems);
+        })
+        .catch(error => {
+            console.error('Error refreshing graph:', error);
+            alert('Error refreshing graph: ' + error.message);
+        });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </script>
+</body>
+</html>
